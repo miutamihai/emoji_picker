@@ -1,24 +1,68 @@
 const std = @import("std");
+const posix = std.posix;
 
-pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+fn clear_screen(terminal: std.fs.File) !void {
+    const CLEAR_CODE = "\x1B[2J\x1B[H";
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // don't forget to flush!
+    _ = try terminal.writeAll(CLEAR_CODE);
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+fn get_window_size(terminal: std.fs.File) !posix.winsize {
+    const handle = terminal.handle;
+    var winsize: posix.winsize = .{ .ws_row = 0, .ws_col = 0, .ws_xpixel = 0, .ws_ypixel = 0 };
+
+    const err = posix.system.ioctl(handle, posix.T.IOCGWINSZ, @intFromPtr(&winsize));
+
+    if (posix.errno(err) != .SUCCESS) {
+        std.log.debug("Failed to get terminal size", .{});
+
+        return error.WindowSizeGettingError;
+    }
+
+    return winsize;
+}
+
+fn print_rectangle(terminal: std.fs.File) !void {
+    const winsize = try get_window_size(terminal);
+
+    var list = std.ArrayList(u8).init(std.heap.page_allocator);
+
+    var col_index: u8 = 0;
+    var row_index: u8 = 0;
+
+    while (row_index < winsize.ws_row) {
+        while (col_index < winsize.ws_col) {
+            const character: u8 = if (col_index == 0 or col_index == winsize.ws_col - 1)
+                '|'
+            else if (row_index == 0 or row_index == winsize.ws_row - 1)
+                '-'
+            else
+                ' ';
+
+            try list.append(character);
+
+            col_index += 1;
+        }
+
+        col_index = 0;
+        row_index += 1;
+    }
+
+    _ = try terminal.writeAll(list.items);
+}
+
+pub fn main() !void {
+    const terminal = std.io.getStdOut();
+
+    try clear_screen(terminal);
+    try print_rectangle(terminal);
+
+    const stdin = std.io.getStdIn().reader();
+
+    const bare_line = try stdin.readUntilDelimiterAlloc(
+        std.heap.page_allocator,
+        '\n',
+        8192,
+    );
+    defer std.heap.page_allocator.free(bare_line);
 }

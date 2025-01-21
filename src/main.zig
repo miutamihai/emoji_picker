@@ -1,10 +1,25 @@
 const std = @import("std");
 const posix = std.posix;
 
-fn clear_screen(terminal: std.fs.File) !void {
-    const CLEAR_CODE = "\x1B[2J\x1B[H";
+const TerminalCodes = enum {
+    clear,
+    cursor_home,
 
-    _ = try terminal.writeAll(CLEAR_CODE);
+    pub fn str(self: TerminalCodes) [:0]const u8 {
+        return switch (self) {
+            .clear => "\x1B[2J",
+            .cursor_home => "\x1B[H",
+        };
+    }
+};
+// TODO: Change all these writes to use buffers
+
+fn reset_cursor_position(terminal: std.fs.File) !void {
+    _ = try terminal.writeAll(TerminalCodes.cursor_home.str());
+}
+
+fn clear_screen(terminal: std.fs.File) !void {
+    _ = try terminal.writeAll(TerminalCodes.clear.str());
 }
 
 fn get_window_size(terminal: std.fs.File) !posix.winsize {

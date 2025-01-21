@@ -27,11 +27,12 @@ fn print_rectangle(terminal: std.fs.File) !void {
 
     var list = std.ArrayList(u8).init(std.heap.page_allocator);
 
-    var col_index: u8 = 0;
     var row_index: u8 = 0;
 
-    while (row_index < winsize.ws_row) {
-        while (col_index < winsize.ws_col) {
+    while (row_index < winsize.ws_row) : (row_index += 1) {
+        var col_index: u8 = 0;
+
+        while (col_index < winsize.ws_col) : (col_index += 1) {
             const character: u8 = if (col_index == 0 or col_index == winsize.ws_col - 1)
                 '|'
             else if (row_index == 0 or row_index == winsize.ws_row - 1)
@@ -40,12 +41,7 @@ fn print_rectangle(terminal: std.fs.File) !void {
                 ' ';
 
             try list.append(character);
-
-            col_index += 1;
         }
-
-        col_index = 0;
-        row_index += 1;
     }
 
     _ = try terminal.writeAll(list.items);

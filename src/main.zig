@@ -1,5 +1,6 @@
 const std = @import("std");
 const posix = std.posix;
+const ui_drawer = @import("ui_drawer.zig");
 
 const TerminalCodes = enum {
     clear,
@@ -210,11 +211,44 @@ fn print_rectangle(terminal: std.fs.File) !void {
     _ = try terminal.writeAll(TerminalCodes.change_cursor_to_bar.str());
 }
 
+fn draw_initial_rectangle(terminal: std.fs.File) !void {
+    const winsize = try get_window_size(terminal);
+    const drawer = ui_drawer.RectangleDrawer.init(0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
+
+    var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
+    const gpa = general_purpose_allocator.allocator();
+
+    var list = std.ArrayList(ui_drawer.UIElement).init(gpa);
+
+    var row_index: usize = 0;
+
+    while (row_index < winsize.ws_row) : (row_index += 1) {
+        var col_index: usize = 0;
+
+        while (col_index < winsize.ws_col) : (col_index += 1) {
+            const element: ui_drawer.UIElement = try drawer.get_for_indices(row_index, col_index);
+
+            try list.append(element);
+        }
+    }
+
+    var byte_list = std.ArrayList(u8).init(gpa);
+
+    for (list.items) |element| {
+        const slice = element.text;
+
+        try byte_list.appendSlice(slice);
+    }
+
+    _ = try terminal.writeAll(byte_list.items);
+}
+
 pub fn main() !void {
     const terminal = std.io.getStdOut();
 
     try clear_screen(terminal);
-    try print_rectangle(terminal);
+    try draw_initial_rectangle(terminal);
+    // try print_rectangle(terminal);
 
     const stdin = std.io.getStdIn().reader();
 

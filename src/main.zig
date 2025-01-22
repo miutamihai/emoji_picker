@@ -12,6 +12,28 @@ const TerminalCodes = enum {
         };
     }
 };
+
+const UICharacters = enum {
+    horizontal_line,
+    vertical_line,
+    top_right_corner,
+    top_left_corner,
+    bottom_right_corner,
+    bottom_left_corner,
+    space,
+
+    pub fn str(self: UICharacters) [:0]const u8 {
+        return switch (self) {
+            .horizontal_line => "─",
+            .vertical_line => "│",
+            .top_right_corner => "╮",
+            .top_left_corner => "╭",
+            .bottom_right_corner => "╯",
+            .bottom_left_corner => "╰",
+            .space => " ",
+        };
+    }
+};
 // TODO: Change all these writes to use buffers
 
 fn reset_cursor_position(terminal: std.fs.File) !void {
@@ -40,7 +62,7 @@ fn get_window_size(terminal: std.fs.File) !posix.winsize {
 fn print_rectangle(terminal: std.fs.File) !void {
     const winsize = try get_window_size(terminal);
 
-    var list = std.ArrayList(u8).init(std.heap.page_allocator);
+    var list = std.ArrayList([]const u8).init(std.heap.page_allocator);
 
     var row_index: u8 = 0;
 
@@ -48,18 +70,40 @@ fn print_rectangle(terminal: std.fs.File) !void {
         var col_index: u8 = 0;
 
         while (col_index < winsize.ws_col) : (col_index += 1) {
-            const character: u8 = if (col_index == 0 or col_index == winsize.ws_col - 1)
-                '|'
-            else if (row_index == 0 or row_index == winsize.ws_row - 1)
-                '-'
-            else
-                ' ';
+            const character: UICharacters = block: {
+                if (col_index == 0 and row_index == 0) {
+                    break :block .top_left_corner;
+                }
+                if (col_index == winsize.ws_col - 1 and row_index == 0) {
+                    break :block .top_right_corner;
+                }
+                if (col_index == 0 and row_index == winsize.ws_row - 1) {
+                    break :block .bottom_left_corner;
+                }
+                if (col_index == winsize.ws_col - 1 and row_index == winsize.ws_row - 1) {
+                    break :block .bottom_right_corner;
+                }
+                if (col_index == 0 or col_index == winsize.ws_col - 1) {
+                    break :block .vertical_line;
+                }
+                if (row_index == 0 or row_index == winsize.ws_row - 1) {
+                    break :block .horizontal_line;
+                }
 
-            try list.append(character);
+                break :block .space;
+            };
+
+            try list.append(character.str());
         }
     }
 
-    _ = try terminal.writeAll(list.items);
+    var byte_list = std.ArrayList(u8).init(std.heap.page_allocator);
+
+    for (list.items) |slice| {
+        try byte_list.appendSlice(slice);
+    }
+
+    _ = try terminal.writeAll(byte_list.items);
 }
 
 pub fn main() !void {

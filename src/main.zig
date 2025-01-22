@@ -4,11 +4,15 @@ const posix = std.posix;
 const TerminalCodes = enum {
     clear,
     cursor_home,
+    move_cursor,
+    change_cursor_to_bar,
 
     pub fn str(self: TerminalCodes) [:0]const u8 {
         return switch (self) {
             .clear => "\x1B[2J",
             .cursor_home => "\x1B[H",
+            .move_cursor => "\x1B[{d};{d}H",
+            .change_cursor_to_bar => "\x1B[6 q",
         };
     }
 };
@@ -80,18 +84,19 @@ fn print_rectangle(terminal: std.fs.File) !void {
 
     var row_index: usize = 0;
 
+    const middle_row_index: usize = (winsize.ws_row - 1) / 2;
+    const middle_col_index: usize = (winsize.ws_col - 1) / 2;
+    const input_box_width: usize = winsize.ws_col / 3;
+    const input_box_height: usize = 3;
+
+    const input_vertical_start_pos: usize = middle_row_index - (input_box_height / 2);
+    const input_horizotal_start_pos: usize = middle_col_index - (input_box_width / 2);
+
+    const input_vertical_end_pos = input_vertical_start_pos + input_box_height;
+    const input_horizontal_end_pos = input_horizotal_start_pos + input_box_width;
+
     while (row_index < winsize.ws_row) : (row_index += 1) {
         var col_index: usize = 0;
-        const middle_row_index: usize = (winsize.ws_row - 1) / 2;
-        const middle_col_index: usize = (winsize.ws_col - 1) / 2;
-        const input_box_width: usize = winsize.ws_col / 3;
-        const input_box_height: usize = 3;
-
-        const input_vertical_start_pos: usize = middle_row_index - (input_box_height / 2);
-        const input_horizotal_start_pos: usize = middle_col_index - (input_box_width / 2);
-
-        const input_vertical_end_pos = input_vertical_start_pos + input_box_height;
-        const input_horizontal_end_pos = input_horizotal_start_pos + input_box_width;
 
         while (col_index < winsize.ws_col) : (col_index += 1) {
             const element: UIElement = block: {
@@ -196,6 +201,13 @@ fn print_rectangle(terminal: std.fs.File) !void {
     }
 
     _ = try terminal.writeAll(byte_list.items);
+
+    const moveCursorToInput = try std.fmt.allocPrint(gpa, TerminalCodes.move_cursor.str(), .{ input_vertical_start_pos + 2, input_horizotal_start_pos + 2 });
+    defer gpa.free(moveCursorToInput);
+
+    _ = try terminal.writeAll(moveCursorToInput);
+
+    _ = try terminal.writeAll(TerminalCodes.change_cursor_to_bar.str());
 }
 
 pub fn main() !void {

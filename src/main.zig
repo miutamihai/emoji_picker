@@ -73,12 +73,12 @@ fn get_window_size(terminal: std.fs.File) !posix.winsize {
 fn print_rectangle(terminal: std.fs.File) !void {
     const winsize = try get_window_size(terminal);
 
-    var list = std.ArrayList(UIElement).init(std.heap.page_allocator);
-
-    var row_index: usize = 0;
-
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = general_purpose_allocator.allocator();
+
+    var list = std.ArrayList(UIElement).init(gpa);
+
+    var row_index: usize = 0;
 
     while (row_index < winsize.ws_row) : (row_index += 1) {
         var col_index: usize = 0;
@@ -127,7 +127,7 @@ fn print_rectangle(terminal: std.fs.File) !void {
         }
     }
 
-    var byte_list = std.ArrayList(u8).init(std.heap.page_allocator);
+    var byte_list = std.ArrayList(u8).init(gpa);
 
     for (list.items) |element| {
         const slice = element.text;

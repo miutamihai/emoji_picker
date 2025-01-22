@@ -82,6 +82,16 @@ fn print_rectangle(terminal: std.fs.File) !void {
 
     while (row_index < winsize.ws_row) : (row_index += 1) {
         var col_index: usize = 0;
+        const middle_row_index: usize = (winsize.ws_row - 1) / 2;
+        const middle_col_index: usize = (winsize.ws_col - 1) / 2;
+        const input_box_width: usize = winsize.ws_col / 3;
+        const input_box_height: usize = 3;
+
+        const input_vertical_start_pos: usize = middle_row_index - (input_box_height / 2);
+        const input_horizotal_start_pos: usize = middle_col_index - (input_box_width / 2);
+
+        const input_vertical_end_pos = input_vertical_start_pos + input_box_height;
+        const input_horizontal_end_pos = input_horizotal_start_pos + input_box_width;
 
         while (col_index < winsize.ws_col) : (col_index += 1) {
             const element: UIElement = block: {
@@ -99,6 +109,40 @@ fn print_rectangle(terminal: std.fs.File) !void {
 
                         break :block UIElement.init(.text, character);
                     }
+                }
+
+                const is_in_row_interval = row_index >= input_vertical_start_pos and row_index < input_vertical_end_pos;
+                const is_in_col_interval = col_index >= input_horizotal_start_pos and col_index < input_horizontal_end_pos;
+
+                if (is_in_row_interval and is_in_col_interval) {
+                    const input_col_index = col_index - input_horizotal_start_pos;
+                    const input_row_index = row_index - input_vertical_start_pos;
+
+                    if (input_col_index == 0 and input_row_index == 0) {
+                        break :block UIElement.init(.top_left_corner, &.{});
+                    }
+
+                    if (input_col_index == input_box_width - 1 and input_row_index == 0) {
+                        break :block UIElement.init(.top_right_corner, &.{});
+                    }
+
+                    if (input_col_index == 0 and input_row_index == input_box_height - 1) {
+                        break :block UIElement.init(.bottom_left_corner, &.{});
+                    }
+
+                    if (input_col_index == input_box_width - 1 and input_row_index == input_box_height - 1) {
+                        break :block UIElement.init(.bottom_right_corner, &.{});
+                    }
+
+                    if (input_row_index == 0 or input_row_index == input_box_height - 1) {
+                        break :block UIElement.init(.horizontal_line, &.{});
+                    }
+
+                    if (input_col_index == 0 or input_col_index == input_box_width - 1) {
+                        break :block UIElement.init(.vertical_line, &.{});
+                    }
+
+                    break :block UIElement.init(.space, &.{});
                 }
 
                 if (col_index == 0 and row_index == 0) {

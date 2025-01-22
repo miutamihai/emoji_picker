@@ -13,7 +13,7 @@ const TerminalCodes = enum {
     }
 };
 
-const UICharacters = enum {
+const UIElementKind = enum {
     horizontal_line,
     vertical_line,
     top_right_corner,
@@ -21,8 +21,9 @@ const UICharacters = enum {
     bottom_right_corner,
     bottom_left_corner,
     space,
+    text,
 
-    pub fn str(self: UICharacters) [:0]const u8 {
+    pub fn str(self: UIElementKind, text: []const u8) []const u8 {
         return switch (self) {
             .horizontal_line => "─",
             .vertical_line => "│",
@@ -31,7 +32,17 @@ const UICharacters = enum {
             .bottom_right_corner => "╯",
             .bottom_left_corner => "╰",
             .space => " ",
+            .text => text,
         };
+    }
+};
+
+const UIElement = struct {
+    kind: UIElementKind,
+    text: []const u8,
+
+    pub fn init(kind: UIElementKind, text: []const u8) UIElement {
+        return UIElement{ .kind = kind, .text = kind.str(text) };
     }
 };
 // TODO: Change all these writes to use buffers
@@ -62,44 +73,65 @@ fn get_window_size(terminal: std.fs.File) !posix.winsize {
 fn print_rectangle(terminal: std.fs.File) !void {
     const winsize = try get_window_size(terminal);
 
-    var list = std.ArrayList([]const u8).init(std.heap.page_allocator);
+    var list = std.ArrayList(UIElement).init(std.heap.page_allocator);
 
-    var row_index: u8 = 0;
+    var row_index: usize = 0;
+
+    var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
+    const gpa = general_purpose_allocator.allocator();
 
     while (row_index < winsize.ws_row) : (row_index += 1) {
-        var col_index: u8 = 0;
+        var col_index: usize = 0;
 
         while (col_index < winsize.ws_col) : (col_index += 1) {
-            const character: UICharacters = block: {
+            const element: UIElement = block: {
+                const title = "Mihai's Emoji Picker";
+
+                if (row_index == 0) {
+                    const row_middle = (winsize.ws_col - 1) / 2;
+                    const title_starting_pos = row_middle - (title.len / 2);
+                    const title_ending_pos = title_starting_pos + title.len;
+
+                    if (col_index >= title_starting_pos and col_index < title_ending_pos) {
+                        // Copying here as to avoid overwriting previous elements
+                        const temp = &.{title[col_index - title_starting_pos]};
+                        const character: []const u8 = try gpa.dupe(u8, temp);
+
+                        break :block UIElement.init(.text, character);
+                    }
+                }
+
                 if (col_index == 0 and row_index == 0) {
-                    break :block .top_left_corner;
+                    break :block UIElement.init(.top_left_corner, &.{});
                 }
                 if (col_index == winsize.ws_col - 1 and row_index == 0) {
-                    break :block .top_right_corner;
+                    break :block UIElement.init(.top_right_corner, &.{});
                 }
                 if (col_index == 0 and row_index == winsize.ws_row - 1) {
-                    break :block .bottom_left_corner;
+                    break :block UIElement.init(.bottom_left_corner, &.{});
                 }
                 if (col_index == winsize.ws_col - 1 and row_index == winsize.ws_row - 1) {
-                    break :block .bottom_right_corner;
+                    break :block UIElement.init(.bottom_right_corner, &.{});
                 }
                 if (col_index == 0 or col_index == winsize.ws_col - 1) {
-                    break :block .vertical_line;
+                    break :block UIElement.init(.vertical_line, &.{});
                 }
                 if (row_index == 0 or row_index == winsize.ws_row - 1) {
-                    break :block .horizontal_line;
+                    break :block UIElement.init(.horizontal_line, &.{});
                 }
 
-                break :block .space;
+                break :block UIElement.init(.space, &.{});
             };
 
-            try list.append(character.str());
+            try list.append(element);
         }
     }
 
     var byte_list = std.ArrayList(u8).init(std.heap.page_allocator);
 
-    for (list.items) |slice| {
+    for (list.items) |element| {
+        const slice = element.text;
+
         try byte_list.appendSlice(slice);
     }
 

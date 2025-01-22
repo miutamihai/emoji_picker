@@ -118,6 +118,22 @@ fn print_rectangle(terminal: std.fs.File) !void {
                     const input_col_index = col_index - input_horizotal_start_pos;
                     const input_row_index = row_index - input_vertical_start_pos;
 
+                    const input_title = "Search...";
+
+                    if (input_row_index == 0) {
+                        const row_middle = (input_horizontal_end_pos - 1 - input_horizotal_start_pos) / 2;
+                        const title_starting_pos = row_middle - (input_title.len / 2);
+                        const title_ending_pos = title_starting_pos + input_title.len;
+
+                        if (input_col_index >= title_starting_pos and input_col_index < title_ending_pos) {
+                            // Copying here as to avoid overwriting previous elements
+                            const temp = &.{input_title[input_col_index - title_starting_pos]};
+                            const character: []const u8 = try gpa.dupe(u8, temp);
+
+                            break :block UIElement.init(.text, character);
+                        }
+                    }
+
                     if (input_col_index == 0 and input_row_index == 0) {
                         break :block UIElement.init(.top_left_corner, &.{});
                     }

@@ -1,55 +1,11 @@
 const std = @import("std");
 const posix = std.posix;
 const ui_drawer = @import("ui_drawer.zig");
+const types = @import("types.zig");
+const terminal = @import("terminal.zig");
 
-const TerminalCodes = enum {
-    clear,
-    cursor_home,
-    move_cursor,
-    change_cursor_to_bar,
-
-    pub fn str(self: TerminalCodes) [:0]const u8 {
-        return switch (self) {
-            .clear => "\x1B[2J",
-            .cursor_home => "\x1B[H",
-            .move_cursor => "\x1B[{d};{d}H",
-            .change_cursor_to_bar => "\x1B[6 q",
-        };
-    }
-};
-
-// TODO: Change all these writes to use buffers
-
-fn reset_cursor_position(terminal: std.fs.File) !void {
-    _ = try terminal.writeAll(TerminalCodes.cursor_home.str());
-}
-
-fn clear_screen(terminal: std.fs.File) !void {
-    _ = try terminal.writeAll(TerminalCodes.clear.str());
-}
-
-fn get_window_size(terminal: std.fs.File) !posix.winsize {
-    const handle = terminal.handle;
-    var winsize: posix.winsize = .{ .ws_row = 0, .ws_col = 0, .ws_xpixel = 0, .ws_ypixel = 0 };
-
-    const err = posix.system.ioctl(handle, posix.T.IOCGWINSZ, @intFromPtr(&winsize));
-
-    if (posix.errno(err) != .SUCCESS) {
-        std.log.debug("Failed to get terminal size", .{});
-
-        return error.WindowSizeGettingError;
-    }
-
-    return winsize;
-}
-
-const StartingCoordinates = struct {
-    vertical: usize,
-    horizontal: usize,
-};
-
-fn draw_initial_rectangle(terminal: std.fs.File) !StartingCoordinates {
-    const winsize = try get_window_size(terminal);
+fn draw_initial_rectangle(terminal_instance: terminal.Terminal) !types.StartingCoordinates {
+    const winsize = try terminal_instance.get_window_size();
     const drawer = ui_drawer.RectangleDrawer.init(0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
 
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
@@ -88,32 +44,18 @@ fn draw_initial_rectangle(terminal: std.fs.File) !StartingCoordinates {
         try byte_list.appendSlice(slice);
     }
 
-    _ = try terminal.writeAll(byte_list.items);
+    _ = try terminal_instance.write(byte_list.items);
 
-    return StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizotal_start_pos };
-}
-
-fn move_cursor_to_input(terminal: std.fs.File, starting_coordinates: StartingCoordinates) !void {
-    var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
-    const gpa = general_purpose_allocator.allocator();
-
-    const move_cursor_code = try std.fmt.allocPrint(gpa, TerminalCodes.move_cursor.str(), .{ starting_coordinates.vertical + 2, starting_coordinates.horizontal + 2 });
-    defer gpa.free(move_cursor_code);
-
-    _ = try terminal.writeAll(move_cursor_code);
-}
-
-fn change_cursor_shape(terminal: std.fs.File) !void {
-    _ = try terminal.writeAll(TerminalCodes.change_cursor_to_bar.str());
+    return types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizotal_start_pos };
 }
 
 pub fn main() !void {
-    const terminal = std.io.getStdOut();
+    const terminal_instance = terminal.Terminal.init();
 
-    try clear_screen(terminal);
-    const input_starting_coordinates = try draw_initial_rectangle(terminal);
-    try move_cursor_to_input(terminal, input_starting_coordinates);
-    try change_cursor_shape(terminal);
+    try terminal_instance.clear_screen();
+    const input_starting_coordinates = try draw_initial_rectangle(terminal_instance);
+    try terminal_instance.move_cursor_to_coordinates(input_starting_coordinates);
+    try terminal_instance.change_cursor_shape();
 
     const stdin = std.io.getStdIn().reader();
 

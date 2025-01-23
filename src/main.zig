@@ -222,11 +222,22 @@ fn draw_initial_rectangle(terminal: std.fs.File) !void {
 
     var row_index: usize = 0;
 
+    const middle_row_index: usize = (winsize.ws_row - 1) / 2;
+    const middle_col_index: usize = (winsize.ws_col - 1) / 2;
+    const input_box_width: usize = winsize.ws_col / 3;
+    const input_box_height: usize = 3;
+
+    const input_vertical_start_pos: usize = middle_row_index - (input_box_height / 2);
+    const input_horizotal_start_pos: usize = middle_col_index - (input_box_width / 2);
+
+    const input_drawer = ui_drawer.RectangleDrawer.init(input_vertical_start_pos, input_horizotal_start_pos, input_box_height, input_box_width, "Search");
+
     while (row_index < winsize.ws_row) : (row_index += 1) {
         var col_index: usize = 0;
 
         while (col_index < winsize.ws_col) : (col_index += 1) {
-            const element: ui_drawer.UIElement = try drawer.get_for_indices(row_index, col_index);
+            const element: ui_drawer.UIElement = input_drawer.get_for_indices(row_index, col_index) catch
+                drawer.get_for_indices(row_index, col_index) catch unreachable;
 
             try list.append(element);
         }

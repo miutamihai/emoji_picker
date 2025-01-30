@@ -90,13 +90,20 @@ pub const Screen = struct {
         const input_vertical_start_pos: usize = middle_row_index - (input_box_height / 2);
         const input_horizontal_start_pos: usize = middle_col_index - (input_box_width / 2);
 
+        const search_box_width: usize = ((winsize.ws_col - 1) / 3) * 2;
+        const search_box_height: usize = ((winsize.ws_row - 1) / 3) * 2;
+
+        const search_box_vertical_start_pos: usize = input_vertical_start_pos + input_box_height + 2;
+        const search_box_horizontal_start_pos: usize = middle_col_index - (search_box_width / 2);
+
         const input_drawer = ui_drawer.RectangleDrawer.init(input_vertical_start_pos, input_horizontal_start_pos, input_box_height, input_box_width, "Search");
+        const search_box_drawer = ui_drawer.RectangleDrawer.init(search_box_vertical_start_pos, search_box_horizontal_start_pos, search_box_height, search_box_width, "");
 
         while (row_index < winsize.ws_row) : (row_index += 1) {
             var col_index: usize = 0;
 
             while (col_index < winsize.ws_col) : (col_index += 1) {
-                const element: ui_drawer.UIElement = input_drawer.get_for_indices(row_index, col_index) catch drawer.get_for_indices(row_index, col_index) catch unreachable;
+                const element: ui_drawer.UIElement = input_drawer.get_for_indices(row_index, col_index) catch search_box_drawer.get_for_indices(row_index, col_index) catch drawer.get_for_indices(row_index, col_index) catch unreachable;
 
                 try list.append(element);
             }

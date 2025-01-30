@@ -13,6 +13,7 @@ const TerminalCodes = enum {
     change_cursor_to_bar,
     toggle_alt_screen_on,
     toggle_alt_screen_off,
+    delete_character,
 
     pub fn str(self: TerminalCodes) [:0]const u8 {
         return switch (self) {
@@ -22,6 +23,7 @@ const TerminalCodes = enum {
             .change_cursor_to_bar => "\x1B[6 q",
             .toggle_alt_screen_on => "\x1B[?1049h",
             .toggle_alt_screen_off => "\x1B[?1049l",
+            .delete_character => &.{ 0x08, ' ', 0x08 },
         };
     }
 };
@@ -136,5 +138,9 @@ pub const Terminal = struct {
 
     pub fn move_to_original_screen(self: Terminal) !void {
         _ = try self.terminal_file_handle.write(TerminalCodes.toggle_alt_screen_off.str());
+    }
+
+    pub fn delete_character(self: Terminal) !void {
+        _ = try self.terminal_file_handle.write(TerminalCodes.delete_character.str());
     }
 };

@@ -2,6 +2,7 @@ pub const KeyType = enum {
     sig_term,
     character,
     new_line,
+    backspace,
 
     // TODO: Change this massive shit
     pub fn from_byte(byte: u8) KeyType {
@@ -11,6 +12,10 @@ pub const KeyType = enum {
 
         if (byte == 13) {
             return .new_line;
+        }
+
+        if (byte == 127) {
+            return .backspace;
         }
 
         return .character;

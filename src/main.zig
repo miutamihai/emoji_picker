@@ -31,6 +31,19 @@ pub fn main() !void {
 
                 break;
             },
+            .backspace => {
+                if (input.items.len == 0) {
+                    continue;
+                }
+
+                _ = input.popOrNull();
+                try terminal_instance.delete_character();
+
+                if (screen_instance.current_screen == screen.ScreenType.search and input.items.len == 0) {
+                    input_starting_coordinates = try screen_instance.navigate(screen.ScreenType.home);
+                    try terminal_instance.move_cursor_to_coordinates(input_starting_coordinates);
+                }
+            },
             .character => {
                 if (screen_instance.current_screen == screen.ScreenType.home) {
                     input_starting_coordinates = try screen_instance.navigate(screen.ScreenType.search);

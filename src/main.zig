@@ -56,6 +56,9 @@ pub fn main() !void {
             .new_line => {
                 try terminal_instance.write("\n");
             },
+            .unknown => {
+                continue;
+            },
         }
     }
 }

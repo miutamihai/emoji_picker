@@ -14,14 +14,14 @@ pub const Screen = struct {
         return Screen{ .terminal = terminal_instance, .current_screen = ScreenType.home };
     }
 
-    pub fn navigate(self: *Screen, destination: ScreenType) !types.StartingCoordinates {
+    pub fn navigate(self: *Screen, destination: ScreenType, input: std.ArrayList(u8)) !types.StartingCoordinates {
         try self.terminal.clear_screen();
         try self.terminal.reset_cursor_position();
         self.current_screen = destination;
 
         return switch (destination) {
             .home => self.home(),
-            .search => self.search(),
+            .search => self.search(input),
         };
     }
 
@@ -70,7 +70,7 @@ pub const Screen = struct {
         return types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizotal_start_pos };
     }
 
-    fn search(self: Screen) !types.StartingCoordinates {
+    fn search(self: Screen, input: std.ArrayList(u8)) !types.StartingCoordinates {
         const winsize = try self.terminal.get_window_size();
         const drawer = ui_drawer.RectangleDrawer.init(0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
 
@@ -100,16 +100,34 @@ pub const Screen = struct {
         const input_drawer = ui_drawer.RectangleDrawer.init(input_vertical_start_pos, input_horizontal_start_pos, input_box_height, input_box_width, "Search");
         const search_box_drawer = ui_drawer.RectangleDrawer.init(search_box_vertical_start_pos, search_box_horizontal_start_pos, search_box_height, search_box_width, "");
 
-        const emoji_list = emoji.get_emojis();
+        const emoji_list = try emoji.get_matching_input(gpa, input);
 
-        const emoji_view = emoji_list[0..search_box_height];
+        const emoji_view = emoji_list[0..@min(search_box_height, emoji_list.len)];
 
         while (row_index < winsize.ws_row) : (row_index += 1) {
             var col_index: usize = 0;
 
             while (col_index < winsize.ws_col) : (col_index += 1) {
                 const element: ui_drawer.UIElement = blk: {
+                    if (input_drawer.is_within_bounds_exclusive(row_index, col_index)) {
+                        const current_index = col_index - input_horizontal_start_pos - 1;
+
+                        if (current_index < input.items.len) {
+                            const temp = &.{input.items[current_index]};
+                            const character: []const u8 = try gpa.dupe(u8, temp);
+
+                            break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.text, character);
+                        } else {
+                            break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.space, "");
+                        }
+                    }
+
                     if (search_box_drawer.is_within_bounds_exclusive(row_index, col_index)) {
+                        const current_index = row_index - search_box_vertical_start_pos;
+                        if (current_index >= emoji_view.len) {
+                            break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.space, "");
+                        }
+
                         const current_emoji = emoji_view[row_index - search_box_vertical_start_pos];
                         const description = current_emoji.description;
                         const target_emoji = current_emoji.emoji;
@@ -131,6 +149,7 @@ pub const Screen = struct {
                                         // Emojis can take 2 visual spaces (if they're 4 bytes long),
                                         //  so need to skip one character here
 
+                                        // FIXME: There are some emojis for which this is not enough
                                         if (target_emoji.len > 3) {
                                             col_index += 1;
                                         }

@@ -2,6 +2,7 @@ const std = @import("std");
 const terminal = @import("terminal.zig");
 const types = @import("types.zig");
 const ui_drawer = @import("ui_drawer.zig");
+const emoji = @import("emoji.zig");
 
 pub const ScreenType = enum { home, search };
 
@@ -99,11 +100,54 @@ pub const Screen = struct {
         const input_drawer = ui_drawer.RectangleDrawer.init(input_vertical_start_pos, input_horizontal_start_pos, input_box_height, input_box_width, "Search");
         const search_box_drawer = ui_drawer.RectangleDrawer.init(search_box_vertical_start_pos, search_box_horizontal_start_pos, search_box_height, search_box_width, "");
 
+        const emoji_list = emoji.get_emojis();
+
+        const emoji_view = emoji_list[0..search_box_height];
+
         while (row_index < winsize.ws_row) : (row_index += 1) {
             var col_index: usize = 0;
 
             while (col_index < winsize.ws_col) : (col_index += 1) {
-                const element: ui_drawer.UIElement = input_drawer.get_for_indices(row_index, col_index) catch search_box_drawer.get_for_indices(row_index, col_index) catch drawer.get_for_indices(row_index, col_index) catch unreachable;
+                const element: ui_drawer.UIElement = blk: {
+                    if (search_box_drawer.is_within_bounds_exclusive(row_index, col_index)) {
+                        const current_emoji = emoji_view[row_index - search_box_vertical_start_pos];
+                        const description = current_emoji.description;
+                        const target_emoji = current_emoji.emoji;
+
+                        const total_text_len = description.len + 1;
+                        const text_start_pos = middle_col_index - (total_text_len / 2);
+                        const text_end_pos = text_start_pos + total_text_len;
+
+                        const target_chars = inner_blk: {
+                            if (col_index < text_start_pos or col_index >= text_end_pos) {
+                                break :inner_blk " ";
+                            } else {
+                                const target_array_index = col_index - text_start_pos;
+
+                                const temp = temp_blk: {
+                                    if (target_array_index < description.len) {
+                                        break :temp_blk &.{description[target_array_index]};
+                                    } else {
+                                        // Emojis can take 2 visual spaces (if they're 4 bytes long),
+                                        //  so need to skip one character here
+
+                                        if (target_emoji.len > 3) {
+                                            col_index += 1;
+                                        }
+
+                                        break :temp_blk target_emoji;
+                                    }
+                                };
+                                const character: []const u8 = try gpa.dupe(u8, temp);
+                                break :inner_blk character;
+                            }
+                        };
+
+                        break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.text, target_chars);
+                    } else {
+                        break :blk input_drawer.get_for_indices(row_index, col_index) catch search_box_drawer.get_for_indices(row_index, col_index) catch drawer.get_for_indices(row_index, col_index) catch unreachable;
+                    }
+                };
 
                 try list.append(element);
             }

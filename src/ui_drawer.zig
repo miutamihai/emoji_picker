@@ -1,7 +1,7 @@
 const std = @import("std");
 const posix = std.posix;
 
-const UIElementKind = enum {
+pub const UIElementKind = enum {
     horizontal_line,
     vertical_line,
     top_right_corner,
@@ -61,11 +61,22 @@ pub const RectangleDrawer = struct {
         };
     }
 
-    pub fn get_for_indices(self: RectangleDrawer, vertical_index: usize, horizontal_index: usize) !UIElement {
-        const is_outside_vertical_bounds = vertical_index < self.vertical_offset or vertical_index >= self.vertical_end;
-        const is_outside_horizontal_bounds = horizontal_index < self.horizontal_offset or horizontal_index >= self.horizontal_end;
+    pub fn is_within_bounds(self: RectangleDrawer, vertical_index: usize, horizontal_index: usize) bool {
+        const is_within_vertical_bounds = vertical_index >= self.vertical_offset and vertical_index < self.vertical_end;
+        const is_within_horizontal_bounds = horizontal_index >= self.horizontal_offset and horizontal_index < self.horizontal_end;
 
-        if (is_outside_vertical_bounds or is_outside_horizontal_bounds) {
+        return is_within_vertical_bounds and is_within_horizontal_bounds;
+    }
+
+    pub fn is_within_bounds_exclusive(self: RectangleDrawer, vertical_index: usize, horizontal_index: usize) bool {
+        const is_within_vertical_bounds = vertical_index > self.vertical_offset and vertical_index < self.vertical_end - 1;
+        const is_within_horizontal_bounds = horizontal_index > self.horizontal_offset and horizontal_index < self.horizontal_end - 1;
+
+        return is_within_vertical_bounds and is_within_horizontal_bounds;
+    }
+
+    pub fn get_for_indices(self: RectangleDrawer, vertical_index: usize, horizontal_index: usize) !UIElement {
+        if (!self.is_within_bounds(vertical_index, horizontal_index)) {
             return DrawingError.OutOfBounds;
         }
 

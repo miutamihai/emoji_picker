@@ -55,26 +55,28 @@ pub const Terminal = struct {
     terminal_file_handle: std.fs.File,
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) !Terminal {
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator) !Self {
         const handle = try fs.openFileAbsolute("/dev/tty", .{
             .mode = .read_write,
             .allow_ctty = true,
         });
 
-        return Terminal{ .terminal_file_handle = handle, .allocator = allocator };
+        return Self{ .terminal_file_handle = handle, .allocator = allocator };
     }
 
     // TODO: Change all these writes to use buffers
 
-    pub fn reset_cursor_position(self: Terminal) !void {
+    pub fn reset_cursor_position(self: Self) !void {
         _ = try self.terminal_file_handle.writeAll(TerminalCodes.cursor_home.str());
     }
 
-    pub fn clear_screen(seld: Terminal) !void {
+    pub fn clear_screen(seld: Self) !void {
         _ = try seld.terminal_file_handle.writeAll(TerminalCodes.clear.str());
     }
 
-    pub fn get_window_size(self: Terminal) !posix.winsize {
+    pub fn get_window_size(self: Self) !posix.winsize {
         const handle = self.terminal_file_handle.handle;
         var winsize: posix.winsize = .{ .ws_row = 0, .ws_col = 0, .ws_xpixel = 0, .ws_ypixel = 0 };
 
@@ -89,21 +91,21 @@ pub const Terminal = struct {
         return winsize;
     }
 
-    pub fn move_cursor_to_coordinates(self: Terminal, starting_coordinates: types.StartingCoordinates) !void {
+    pub fn move_cursor_to_coordinates(self: Self, starting_coordinates: types.StartingCoordinates) !void {
         const move_cursor_code = try std.fmt.allocPrint(self.allocator, TerminalCodes.move_cursor.str(), .{ starting_coordinates.vertical + 2, starting_coordinates.horizontal + 2 });
 
         _ = try self.terminal_file_handle.writeAll(move_cursor_code);
     }
 
-    pub fn change_cursor_shape(self: Terminal) !void {
+    pub fn change_cursor_shape(self: Self) !void {
         _ = try self.terminal_file_handle.writeAll(TerminalCodes.change_cursor_to_bar.str());
     }
 
-    pub fn write(self: Terminal, bytes: []const u8) !void {
+    pub fn write(self: Self, bytes: []const u8) !void {
         _ = try self.terminal_file_handle.writeAll(bytes);
     }
 
-    pub fn enable_raw_mode(self: Terminal) !void {
+    pub fn enable_raw_mode(self: Self) !void {
         const orig_termios = orig_termios_mutex.lock();
         defer orig_termios_mutex.unlock();
         if (orig_termios.*) |_| {
@@ -121,7 +123,7 @@ pub const Terminal = struct {
         orig_termios.* = orig;
     }
 
-    pub fn disable_raw_mode(self: Terminal) !void {
+    pub fn disable_raw_mode(self: Self) !void {
         const orig_termios = orig_termios_mutex.lock();
         defer orig_termios_mutex.unlock();
         if (orig_termios.*) |orig_ios| {
@@ -129,15 +131,15 @@ pub const Terminal = struct {
         }
     }
 
-    pub fn move_to_alt_screen(self: Terminal) !void {
+    pub fn move_to_alt_screen(self: Self) !void {
         _ = try self.terminal_file_handle.write(TerminalCodes.toggle_alt_screen_on.str());
     }
 
-    pub fn move_to_original_screen(self: Terminal) !void {
+    pub fn move_to_original_screen(self: Self) !void {
         _ = try self.terminal_file_handle.write(TerminalCodes.toggle_alt_screen_off.str());
     }
 
-    pub fn delete_character(self: Terminal) !void {
+    pub fn delete_character(self: Self) !void {
         _ = try self.terminal_file_handle.write(TerminalCodes.delete_character.str());
     }
 };

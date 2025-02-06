@@ -11,7 +11,9 @@ pub const UIElementKind = enum {
     space,
     text,
 
-    pub fn str(self: UIElementKind, text: []const u8) []const u8 {
+    const Self = @This();
+
+    pub fn str(self: Self, text: []const u8) []const u8 {
         return switch (self) {
             .horizontal_line => "─",
             .vertical_line => "│",
@@ -29,7 +31,9 @@ pub const UIElement = struct {
     kind: UIElementKind,
     text: []const u8,
 
-    pub fn init(kind: UIElementKind, text: []const u8) UIElement {
+    const Self = @This();
+
+    pub fn init(kind: UIElementKind, text: []const u8) Self {
         return UIElement{ .kind = kind, .text = kind.str(text) };
     }
 };
@@ -49,8 +53,10 @@ pub const RectangleDrawer = struct {
     vertical_end: usize,
     horizontal_end: usize,
 
-    pub fn init(allocator: std.mem.Allocator, vertical_offset: usize, horizontal_offset: usize, vertical_size: usize, horizontal_size: usize, title: []const u8) RectangleDrawer {
-        return RectangleDrawer{
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator, vertical_offset: usize, horizontal_offset: usize, vertical_size: usize, horizontal_size: usize, title: []const u8) Self {
+        return Self{
             .allocator = allocator,
             .vertical_offset = vertical_offset,
             .horizontal_offset = horizontal_offset,
@@ -64,21 +70,21 @@ pub const RectangleDrawer = struct {
         };
     }
 
-    pub fn is_within_bounds(self: RectangleDrawer, vertical_index: usize, horizontal_index: usize) bool {
+    pub fn is_within_bounds(self: Self, vertical_index: usize, horizontal_index: usize) bool {
         const is_within_vertical_bounds = vertical_index >= self.vertical_offset and vertical_index < self.vertical_end;
         const is_within_horizontal_bounds = horizontal_index >= self.horizontal_offset and horizontal_index < self.horizontal_end;
 
         return is_within_vertical_bounds and is_within_horizontal_bounds;
     }
 
-    pub fn is_within_bounds_exclusive(self: RectangleDrawer, vertical_index: usize, horizontal_index: usize) bool {
+    pub fn is_within_bounds_exclusive(self: Self, vertical_index: usize, horizontal_index: usize) bool {
         const is_within_vertical_bounds = vertical_index > self.vertical_offset and vertical_index < self.vertical_end - 1;
         const is_within_horizontal_bounds = horizontal_index > self.horizontal_offset and horizontal_index < self.horizontal_end - 1;
 
         return is_within_vertical_bounds and is_within_horizontal_bounds;
     }
 
-    pub fn get_for_indices(self: RectangleDrawer, vertical_index: usize, horizontal_index: usize) !UIElement {
+    pub fn get_for_indices(self: Self, vertical_index: usize, horizontal_index: usize) !UIElement {
         if (!self.is_within_bounds(vertical_index, horizontal_index)) {
             return DrawingError.OutOfBounds;
         }

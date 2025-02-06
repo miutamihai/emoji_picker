@@ -11,11 +11,13 @@ pub const Screen = struct {
     allocator: std.mem.Allocator,
     current_screen: ScreenType,
 
-    pub fn init(allocator: std.mem.Allocator, terminal_instance: terminal.Terminal) Screen {
-        return Screen{ .terminal = terminal_instance, .current_screen = ScreenType.home, .allocator = allocator };
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator, terminal_instance: terminal.Terminal) Self {
+        return Self{ .terminal = terminal_instance, .current_screen = ScreenType.home, .allocator = allocator };
     }
 
-    pub fn navigate(self: *Screen, destination: ScreenType, input: std.ArrayList(u8)) !types.StartingCoordinates {
+    pub fn navigate(self: *Self, destination: ScreenType, input: std.ArrayList(u8)) !types.StartingCoordinates {
         try self.terminal.clear_screen();
         try self.terminal.reset_cursor_position();
         self.current_screen = destination;
@@ -26,7 +28,7 @@ pub const Screen = struct {
         };
     }
 
-    fn home(self: Screen, input: std.ArrayList(u8)) !types.StartingCoordinates {
+    fn home(self: Self, input: std.ArrayList(u8)) !types.StartingCoordinates {
         const winsize = try self.terminal.get_window_size();
         const drawer = ui_drawer.RectangleDrawer.init(self.allocator, 0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
 
@@ -68,7 +70,7 @@ pub const Screen = struct {
         return types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizotal_start_pos + input.items.len };
     }
 
-    fn search(self: Screen, input: std.ArrayList(u8)) !types.StartingCoordinates {
+    fn search(self: Self, input: std.ArrayList(u8)) !types.StartingCoordinates {
         const winsize = try self.terminal.get_window_size();
         const drawer = ui_drawer.RectangleDrawer.init(self.allocator, 0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
 

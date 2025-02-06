@@ -38,12 +38,12 @@ pub fn get_matching_input(allocator: std.mem.Allocator, input: std.ArrayList(u8)
         }
     }
 
-    return try allocator.dupe(Emoji, filtered.items);
+    return try filtered.toOwnedSlice();
 }
 
 const expect = std.testing.expect;
 
-test "get_matching_input works" {
+test "get_matching_input works for full input" {
     const allocator = std.testing.allocator;
 
     var input = std.ArrayList(u8).init(allocator);
@@ -52,6 +52,27 @@ test "get_matching_input works" {
     try input.appendSlice("Romania");
 
     const matching = try get_matching_input(allocator, input);
+    defer allocator.free(matching);
+
+    const expected_emoji = "🇷🇴";
+    const expected_description = "flag: Romania";
+
+    const value = matching[0];
+
+    try expect(std.mem.eql(u8, value.emoji, expected_emoji));
+    try expect(std.mem.eql(u8, value.description, expected_description));
+}
+
+test "get_maching_input works for partial input" {
+    const allocator = std.testing.allocator;
+
+    var input = std.ArrayList(u8).init(allocator);
+    defer input.deinit();
+
+    try input.appendSlice("rom");
+
+    const matching = try get_matching_input(allocator, input);
+    defer allocator.free(matching);
 
     const expected_emoji = "🇷🇴";
     const expected_description = "flag: Romania";

@@ -53,14 +53,15 @@ fn wrapAsErrorUnion(return_no: i32, comptime ERROR_VARIANT: TerminalErrors) !voi
 }
 pub const Terminal = struct {
     terminal_file_handle: std.fs.File,
+    allocator: std.mem.Allocator,
 
-    pub fn init() !Terminal {
+    pub fn init(allocator: std.mem.Allocator) !Terminal {
         const handle = try fs.openFileAbsolute("/dev/tty", .{
             .mode = .read_write,
             .allow_ctty = true,
         });
 
-        return Terminal{ .terminal_file_handle = handle };
+        return Terminal{ .terminal_file_handle = handle, .allocator = allocator };
     }
 
     // TODO: Change all these writes to use buffers
@@ -89,11 +90,7 @@ pub const Terminal = struct {
     }
 
     pub fn move_cursor_to_coordinates(self: Terminal, starting_coordinates: types.StartingCoordinates) !void {
-        var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
-        const gpa = general_purpose_allocator.allocator();
-
-        const move_cursor_code = try std.fmt.allocPrint(gpa, TerminalCodes.move_cursor.str(), .{ starting_coordinates.vertical + 2, starting_coordinates.horizontal + 2 });
-        defer gpa.free(move_cursor_code);
+        const move_cursor_code = try std.fmt.allocPrint(self.allocator, TerminalCodes.move_cursor.str(), .{ starting_coordinates.vertical + 2, starting_coordinates.horizontal + 2 });
 
         _ = try self.terminal_file_handle.writeAll(move_cursor_code);
     }

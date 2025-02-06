@@ -8,10 +8,11 @@ pub const ScreenType = enum { home, search };
 
 pub const Screen = struct {
     terminal: terminal.Terminal,
+    allocator: std.mem.Allocator,
     current_screen: ScreenType,
 
-    pub fn init(terminal_instance: terminal.Terminal) Screen {
-        return Screen{ .terminal = terminal_instance, .current_screen = ScreenType.home };
+    pub fn init(allocator: std.mem.Allocator, terminal_instance: terminal.Terminal) Screen {
+        return Screen{ .terminal = terminal_instance, .current_screen = ScreenType.home, .allocator = allocator };
     }
 
     pub fn navigate(self: *Screen, destination: ScreenType, input: std.ArrayList(u8)) !types.StartingCoordinates {
@@ -27,12 +28,9 @@ pub const Screen = struct {
 
     fn home(self: Screen) !types.StartingCoordinates {
         const winsize = try self.terminal.get_window_size();
-        const drawer = ui_drawer.RectangleDrawer.init(0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
+        const drawer = ui_drawer.RectangleDrawer.init(self.allocator, 0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
 
-        var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
-        const gpa = general_purpose_allocator.allocator();
-
-        var list = std.ArrayList(ui_drawer.UIElement).init(gpa);
+        var list = std.ArrayList(ui_drawer.UIElement).init(self.allocator);
 
         var row_index: usize = 0;
 
@@ -44,7 +42,7 @@ pub const Screen = struct {
         const input_vertical_start_pos: usize = middle_row_index - (input_box_height / 2);
         const input_horizotal_start_pos: usize = middle_col_index - (input_box_width / 2);
 
-        const input_drawer = ui_drawer.RectangleDrawer.init(input_vertical_start_pos, input_horizotal_start_pos, input_box_height, input_box_width, "Search");
+        const input_drawer = ui_drawer.RectangleDrawer.init(self.allocator, input_vertical_start_pos, input_horizotal_start_pos, input_box_height, input_box_width, "Search");
 
         while (row_index < winsize.ws_row) : (row_index += 1) {
             var col_index: usize = 0;
@@ -57,7 +55,7 @@ pub const Screen = struct {
             }
         }
 
-        var byte_list = std.ArrayList(u8).init(gpa);
+        var byte_list = std.ArrayList(u8).init(self.allocator);
 
         for (list.items) |element| {
             const slice = element.text;
@@ -72,12 +70,9 @@ pub const Screen = struct {
 
     fn search(self: Screen, input: std.ArrayList(u8)) !types.StartingCoordinates {
         const winsize = try self.terminal.get_window_size();
-        const drawer = ui_drawer.RectangleDrawer.init(0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
+        const drawer = ui_drawer.RectangleDrawer.init(self.allocator, 0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
 
-        var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
-        const gpa = general_purpose_allocator.allocator();
-
-        var list = std.ArrayList(ui_drawer.UIElement).init(gpa);
+        var list = std.ArrayList(ui_drawer.UIElement).init(self.allocator);
 
         var row_index: usize = 0;
 
@@ -97,10 +92,10 @@ pub const Screen = struct {
         const search_box_vertical_start_pos: usize = input_vertical_start_pos + input_box_height + 2;
         const search_box_horizontal_start_pos: usize = middle_col_index - (search_box_width / 2);
 
-        const input_drawer = ui_drawer.RectangleDrawer.init(input_vertical_start_pos, input_horizontal_start_pos, input_box_height, input_box_width, "Search");
-        const search_box_drawer = ui_drawer.RectangleDrawer.init(search_box_vertical_start_pos, search_box_horizontal_start_pos, search_box_height, search_box_width, "");
+        const input_drawer = ui_drawer.RectangleDrawer.init(self.allocator, input_vertical_start_pos, input_horizontal_start_pos, input_box_height, input_box_width, "Search");
+        const search_box_drawer = ui_drawer.RectangleDrawer.init(self.allocator, search_box_vertical_start_pos, search_box_horizontal_start_pos, search_box_height, search_box_width, "");
 
-        const emoji_list = try emoji.get_matching_input(gpa, input);
+        const emoji_list = try emoji.get_matching_input(self.allocator, input);
 
         const emoji_view = emoji_list[0..@min(search_box_height, emoji_list.len)];
 
@@ -114,7 +109,7 @@ pub const Screen = struct {
 
                         if (current_index < input.items.len) {
                             const temp = &.{input.items[current_index]};
-                            const character: []const u8 = try gpa.dupe(u8, temp);
+                            const character: []const u8 = try self.allocator.dupe(u8, temp);
 
                             break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.text, character);
                         } else {
@@ -157,7 +152,7 @@ pub const Screen = struct {
                                         break :temp_blk target_emoji;
                                     }
                                 };
-                                const character: []const u8 = try gpa.dupe(u8, temp);
+                                const character: []const u8 = try self.allocator.dupe(u8, temp);
                                 break :inner_blk character;
                             }
                         };
@@ -172,7 +167,7 @@ pub const Screen = struct {
             }
         }
 
-        var byte_list = std.ArrayList(u8).init(gpa);
+        var byte_list = std.ArrayList(u8).init(self.allocator);
 
         for (list.items) |element| {
             const slice = element.text;

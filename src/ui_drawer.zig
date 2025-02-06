@@ -37,6 +37,8 @@ pub const UIElement = struct {
 pub const DrawingError = error{OutOfBounds};
 
 pub const RectangleDrawer = struct {
+    allocator: std.mem.Allocator,
+
     vertical_offset: usize,
     horizontal_offset: usize,
     vertical_size: usize,
@@ -47,8 +49,9 @@ pub const RectangleDrawer = struct {
     vertical_end: usize,
     horizontal_end: usize,
 
-    pub fn init(vertical_offset: usize, horizontal_offset: usize, vertical_size: usize, horizontal_size: usize, title: []const u8) RectangleDrawer {
+    pub fn init(allocator: std.mem.Allocator, vertical_offset: usize, horizontal_offset: usize, vertical_size: usize, horizontal_size: usize, title: []const u8) RectangleDrawer {
         return RectangleDrawer{
+            .allocator = allocator,
             .vertical_offset = vertical_offset,
             .horizontal_offset = horizontal_offset,
             .vertical_size = vertical_size,
@@ -80,9 +83,6 @@ pub const RectangleDrawer = struct {
             return DrawingError.OutOfBounds;
         }
 
-        var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
-        const gpa = general_purpose_allocator.allocator();
-
         if (vertical_index == self.vertical_offset and self.title.len != 0) {
             // const row_middle = (self.horizontal_end - 1) / 2;
             const row_middle = self.horizontal_offset + self.horizontal_size / 2;
@@ -92,7 +92,7 @@ pub const RectangleDrawer = struct {
             if (horizontal_index >= title_starting_pos and horizontal_index < title_ending_pos) {
                 // Copying here as to avoid overwriting previous elements
                 const temp = self.title[horizontal_index - title_starting_pos];
-                const character: []const u8 = try gpa.dupe(u8, &.{temp});
+                const character: []const u8 = try self.allocator.dupe(u8, &.{temp});
 
                 return UIElement.init(.text, character);
             }

@@ -4,12 +4,16 @@ const screen = @import("screen.zig");
 const keys = @import("keys.zig");
 
 pub fn main() !void {
-    const terminal_instance = try terminal.Terminal.init();
-    var screen_instance = screen.Screen.init(terminal_instance);
-
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
-    const gpa = general_purpose_allocator.allocator();
-    var input = std.ArrayList(u8).init(gpa);
+    var arena = std.heap.ArenaAllocator.init(general_purpose_allocator.allocator());
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    const terminal_instance = try terminal.Terminal.init(allocator);
+    var screen_instance = screen.Screen.init(allocator, terminal_instance);
+
+    var input = std.ArrayList(u8).init(allocator);
 
     try terminal_instance.clear_screen();
     try terminal_instance.enable_raw_mode();

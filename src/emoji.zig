@@ -29,10 +29,7 @@ pub fn get_matching_input(allocator: std.mem.Allocator, input: std.ArrayList(u8)
             var description_word_iterator = std.mem.splitSequence(u8, emoji.description, " ");
 
             while (description_word_iterator.next()) |description_word| {
-                const lower_description_word = try std.ascii.allocLowerString(allocator, description_word);
-                const lower_input_word = try std.ascii.allocLowerString(allocator, input_word);
-
-                const index_of_input_word = std.mem.indexOf(u8, lower_description_word, lower_input_word);
+                const index_of_input_word = std.ascii.indexOfIgnoreCase(description_word, input_word);
 
                 if (index_of_input_word != null and index_of_input_word == 0) {
                     _ = try filtered.append(emoji);

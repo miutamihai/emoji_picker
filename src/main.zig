@@ -50,13 +50,13 @@ pub fn main() !void {
                     input_starting_coordinates = try screen_instance.navigate(screen.ScreenType.search, input);
                 }
 
-                try terminal_instance.move_cursor_to_coordinates(.{ .vertical = input_starting_coordinates.vertical, .horizontal = input_starting_coordinates.horizontal + input.items.len });
+                try terminal_instance.move_cursor_to_coordinates(input_starting_coordinates);
             },
             .character => {
                 try input.append(key.character);
 
                 input_starting_coordinates = try screen_instance.navigate(screen.ScreenType.search, input);
-                try terminal_instance.move_cursor_to_coordinates(.{ .vertical = input_starting_coordinates.vertical, .horizontal = input_starting_coordinates.horizontal + input.items.len });
+                try terminal_instance.move_cursor_to_coordinates(input_starting_coordinates);
             },
             .new_line => {
                 try terminal_instance.write("\n");

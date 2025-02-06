@@ -21,12 +21,12 @@ pub const Screen = struct {
         self.current_screen = destination;
 
         return switch (destination) {
-            .home => self.home(),
+            .home => self.home(input),
             .search => self.search(input),
         };
     }
 
-    fn home(self: Screen) !types.StartingCoordinates {
+    fn home(self: Screen, input: std.ArrayList(u8)) !types.StartingCoordinates {
         const winsize = try self.terminal.get_window_size();
         const drawer = ui_drawer.RectangleDrawer.init(self.allocator, 0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
 
@@ -65,7 +65,7 @@ pub const Screen = struct {
 
         _ = try self.terminal.write(byte_list.items);
 
-        return types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizotal_start_pos };
+        return types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizotal_start_pos + input.items.len };
     }
 
     fn search(self: Screen, input: std.ArrayList(u8)) !types.StartingCoordinates {
@@ -177,6 +177,6 @@ pub const Screen = struct {
 
         _ = try self.terminal.write(byte_list.items);
 
-        return types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizontal_start_pos };
+        return types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizontal_start_pos + input.items.len };
     }
 };

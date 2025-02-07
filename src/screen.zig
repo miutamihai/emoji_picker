@@ -120,12 +120,12 @@ pub const Screen = struct {
                     }
 
                     if (search_box_drawer.is_within_bounds_exclusive(row_index, col_index)) {
-                        const current_index = row_index - search_box_vertical_start_pos;
-                        if (current_index >= emoji_view.len) {
+                        const current_index = row_index - search_box_vertical_start_pos - 1;
+                        if (current_index >= emoji_view.len or current_index < 0) {
                             break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.space, "");
                         }
 
-                        const current_emoji = emoji_view[row_index - search_box_vertical_start_pos];
+                        const current_emoji = emoji_view[current_index];
                         const description = current_emoji.description;
                         const target_emoji = current_emoji.emoji;
 
@@ -159,6 +159,10 @@ pub const Screen = struct {
                             }
                         };
 
+                        if (current_index == 0) {
+                            break :blk ui_drawer.UIElement.init_with_background(ui_drawer.UIElementKind.text, target_chars, ui_drawer.UIElementBackground.white);
+                        }
+
                         break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.text, target_chars);
                     } else {
                         break :blk input_drawer.get_for_indices(row_index, col_index) catch search_box_drawer.get_for_indices(row_index, col_index) catch drawer.get_for_indices(row_index, col_index) catch unreachable;
@@ -172,9 +176,15 @@ pub const Screen = struct {
         var byte_list = std.ArrayList(u8).init(self.allocator);
 
         for (list.items) |element| {
-            const slice = element.text;
+            const text = element.text;
 
-            try byte_list.appendSlice(slice);
+            if (element.background) |background| {
+                try byte_list.appendSlice(background.str());
+                try byte_list.appendSlice(text);
+                try byte_list.appendSlice(ui_drawer.UIElementBackground.default.str());
+            } else {
+                try byte_list.appendSlice(text);
+            }
         }
 
         _ = try self.terminal.write(byte_list.items);

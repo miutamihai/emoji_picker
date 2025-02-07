@@ -27,14 +27,33 @@ pub const UIElementKind = enum {
     }
 };
 
+pub const UIElementBackground = enum {
+    white,
+    default,
+
+    const Self = @This();
+
+    pub fn str(self: Self) [:0]const u8 {
+        return switch (self) {
+            .white => "\x1B[30;47m",
+            .default => "\x1B[39;49m",
+        };
+    }
+};
+
 pub const UIElement = struct {
     kind: UIElementKind,
     text: []const u8,
+    background: ?UIElementBackground,
 
     const Self = @This();
 
     pub fn init(kind: UIElementKind, text: []const u8) Self {
-        return UIElement{ .kind = kind, .text = kind.str(text) };
+        return UIElement{ .kind = kind, .text = kind.str(text), .background = null };
+    }
+
+    pub fn init_with_background(kind: UIElementKind, text: []const u8, background: UIElementBackground) Self {
+        return UIElement{ .kind = kind, .text = kind.str(text), .background = background };
     }
 };
 

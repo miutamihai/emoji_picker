@@ -15,7 +15,9 @@ const TerminalCodes = enum {
     toggle_alt_screen_off,
     delete_character,
 
-    pub fn str(self: TerminalCodes) [:0]const u8 {
+    const Self = @This();
+
+    pub fn str(self: Self) [:0]const u8 {
         return switch (self) {
             .clear => "\x1B[2J",
             .cursor_home => "\x1B[H",

@@ -18,7 +18,7 @@ pub fn main() !void {
     try terminal_instance.clear_screen();
     try terminal_instance.enable_raw_mode();
     try terminal_instance.move_to_alt_screen();
-    var input_starting_coordinates = try screen_instance.navigate(screen.ScreenType.home, input);
+    var input_starting_coordinates, var element_list = try screen_instance.navigate(screen.ScreenType.home, input);
     try terminal_instance.move_cursor_to_coordinates(input_starting_coordinates);
     try terminal_instance.change_cursor_shape();
 
@@ -26,7 +26,6 @@ pub fn main() !void {
 
     while (true) {
         const byte = try stdin.readByte();
-
         const key = keys.Key.init(byte);
 
         switch (key.key_type) {
@@ -45,9 +44,9 @@ pub fn main() !void {
                 try terminal_instance.delete_character();
 
                 if (screen_instance.current_screen == screen.ScreenType.search and input.items.len == 0) {
-                    input_starting_coordinates = try screen_instance.navigate(screen.ScreenType.home, input);
+                    input_starting_coordinates, element_list = try screen_instance.navigate(screen.ScreenType.home, input);
                 } else {
-                    input_starting_coordinates = try screen_instance.navigate(screen.ScreenType.search, input);
+                    input_starting_coordinates, element_list = try screen_instance.navigate(screen.ScreenType.search, input);
                 }
 
                 try terminal_instance.move_cursor_to_coordinates(input_starting_coordinates);
@@ -55,11 +54,34 @@ pub fn main() !void {
             .character => {
                 try input.append(key.character);
 
-                input_starting_coordinates = try screen_instance.navigate(screen.ScreenType.search, input);
+                input_starting_coordinates, element_list = try screen_instance.navigate(screen.ScreenType.search, input);
                 try terminal_instance.move_cursor_to_coordinates(input_starting_coordinates);
             },
             .new_line => {
                 try terminal_instance.write("\n");
+            },
+            .control => {
+                // We skip the [ character that follows the control
+                // byte
+                _ = try stdin.readByte();
+
+                const control_key = keys.ControlKey.from_byte(try stdin.readByte());
+
+                switch (control_key) {
+                    .arrow_up => {
+                        element_list = try screen_instance.change_highlight(element_list, -1);
+
+                        try terminal_instance.move_cursor_to_coordinates(input_starting_coordinates);
+                    },
+                    .arrow_down => {
+                        element_list = try screen_instance.change_highlight(element_list, 1);
+
+                        try terminal_instance.move_cursor_to_coordinates(input_starting_coordinates);
+                    },
+                    else => {
+                        continue;
+                    },
+                }
             },
             .unknown => {
                 continue;

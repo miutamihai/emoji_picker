@@ -4,24 +4,46 @@ const types = @import("types.zig");
 const ui_drawer = @import("ui_drawer.zig");
 const emoji = @import("emoji.zig");
 
+const c = @cImport(@cInclude("wchar.h"));
+
+// TODO find the following functions a new home
+fn get_elements_matrix(allocator: std.mem.Allocator, terminal_instance: terminal.Terminal) ![][]ui_drawer.UIElement {
+    const winsize = try terminal_instance.get_window_size();
+
+    const matrix = try allocator.alloc([]ui_drawer.UIElement, winsize.ws_row);
+
+    var index: usize = 0;
+
+    while (index < winsize.ws_row) : (index += 1) {
+        matrix[index] = try allocator.alloc(ui_drawer.UIElement, winsize.ws_col);
+    }
+
+    return matrix;
+}
+
+fn get_character_width(char: u21) usize {
+    return c.wcwidth(char);
+}
+
 pub const ScreenType = enum { home, search };
 
 pub const Screen = struct {
     terminal: terminal.Terminal,
     allocator: std.mem.Allocator,
     current_screen: ScreenType,
+    element_matrix: [][]ui_drawer.UIElement,
 
     highlighted_line_index: usize,
 
     const Self = @This();
 
-    pub fn init(allocator: std.mem.Allocator, terminal_instance: terminal.Terminal) Self {
-        return Self{ .terminal = terminal_instance, .current_screen = ScreenType.home, .allocator = allocator, .highlighted_line_index = 0 };
+    pub fn init(allocator: std.mem.Allocator, terminal_instance: terminal.Terminal) !Self {
+        const element_matrix = try get_elements_matrix(allocator, terminal_instance);
+
+        return Self{ .terminal = terminal_instance, .current_screen = ScreenType.home, .allocator = allocator, .highlighted_line_index = 0, .element_matrix = element_matrix };
     }
 
-    const CoordinateElementsPair = struct { types.StartingCoordinates, std.ArrayList(ui_drawer.UIElement) };
-
-    pub fn navigate(self: *Self, destination: ScreenType, input: std.ArrayList(u8)) !CoordinateElementsPair {
+    pub fn navigate(self: *Self, destination: ScreenType, input: std.ArrayList(u8)) !types.StartingCoordinates {
         try self.terminal.clear_screen();
         try self.terminal.reset_cursor_position();
         self.current_screen = destination;
@@ -32,11 +54,9 @@ pub const Screen = struct {
         };
     }
 
-    fn home(self: Self, input: std.ArrayList(u8)) !CoordinateElementsPair {
+    fn home(self: Self, input: std.ArrayList(u8)) !types.StartingCoordinates {
         const winsize = try self.terminal.get_window_size();
         const drawer = ui_drawer.RectangleDrawer.init(self.allocator, 0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
-
-        var list = std.ArrayList(ui_drawer.UIElement).init(self.allocator);
 
         var row_index: usize = 0;
 
@@ -57,22 +77,20 @@ pub const Screen = struct {
                 const element: ui_drawer.UIElement = input_drawer.get_for_indices(row_index, col_index) catch
                     drawer.get_for_indices(row_index, col_index) catch unreachable;
 
-                try list.append(element);
+                self.element_matrix[row_index][col_index] = element;
             }
         }
 
-        try self.write_elements(list);
+        try self.write_elements();
 
-        return .{ types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizotal_start_pos + input.items.len }, list };
+        return types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizotal_start_pos + input.items.len };
     }
 
-    fn search(self: *Self, input: std.ArrayList(u8)) !CoordinateElementsPair {
+    fn search(self: *Self, input: std.ArrayList(u8)) !types.StartingCoordinates {
         self.highlighted_line_index = 0;
 
         const winsize = try self.terminal.get_window_size();
         const drawer = ui_drawer.RectangleDrawer.init(self.allocator, 0, 0, winsize.ws_row, winsize.ws_col, "Mihai's Emoji Picker");
-
-        var list = std.ArrayList(ui_drawer.UIElement).init(self.allocator);
 
         var row_index: usize = 0;
 
@@ -147,6 +165,7 @@ pub const Screen = struct {
                                         //  so need to skip one character here
 
                                         // FIXME: There are some emojis for which this is not enough
+                                        // TODO: use the new getCharWidth function to determine how to do this properly
                                         if (target_emoji.len > 3) {
                                             col_index += 1;
                                         }
@@ -169,26 +188,24 @@ pub const Screen = struct {
                     }
                 };
 
-                try list.append(element);
+                self.element_matrix[row_index][col_index] = element;
             }
         }
 
-        try self.write_elements(list);
+        try self.write_elements();
 
-        return .{ types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizontal_start_pos + input.items.len }, list };
+        return types.StartingCoordinates{ .vertical = input_vertical_start_pos, .horizontal = input_horizontal_start_pos + input.items.len };
     }
 
-    // FIXME: Change the elements to be a ws_row * ws_col slice to fix this
-    pub fn change_highlight(self: *Self, element_list: std.ArrayList(ui_drawer.UIElement), addend: isize) !std.ArrayList(ui_drawer.UIElement) {
+    pub fn change_highlight(self: *Self, addend: isize) !void {
         const cannot_go_up = self.highlighted_line_index == 0 and addend < 0;
-        const cannot_go_down = self.highlighted_line_index == element_list.items.len - 1 and addend > 0;
+        const cannot_go_down = self.highlighted_line_index == self.element_matrix[self.element_matrix.len - 1].len - 1 and addend > 0;
 
         if (cannot_go_up or cannot_go_down) {
-            return element_list;
+            return;
         }
 
         const winsize = try self.terminal.get_window_size();
-        const search_box_width: usize = ((winsize.ws_col - 1) / 3) * 2;
 
         // TODO: Find a better way of doing this
         const new_highlighted_index = if (addend < 0) self.highlighted_line_index - (winsize.ws_col - 1) else self.highlighted_line_index + (winsize.ws_col - 1);
@@ -196,44 +213,38 @@ pub const Screen = struct {
         try self.terminal.clear_screen();
         try self.terminal.reset_cursor_position();
 
-        const elements = element_list.items;
+        var row_index: usize = 0;
+        var col_index: usize = 0;
 
-        var index: usize = 0;
+        while (row_index < self.element_matrix.len) : (row_index += 1) {
+            while (col_index < self.element_matrix[row_index].len) : (col_index += 1) {
+                self.element_matrix[row_index][col_index].background = null;
 
-        while (index < elements.len) : (index += 1) {
-            // std.debug.print("checking index {d}\n", .{index});
-
-            if (elements[index].background != null) {
-                elements[index].background = null;
-
-                continue;
-            }
-            if (new_highlighted_index <= index and index <= new_highlighted_index + search_box_width) {
-                elements[index].background = ui_drawer.UIElementBackground.white;
+                if (row_index == new_highlighted_index) {
+                    self.element_matrix[row_index][col_index].background = ui_drawer.UIElementBackground.white;
+                }
             }
         }
 
         self.highlighted_line_index = new_highlighted_index;
 
-        const new_element_list = std.ArrayList(ui_drawer.UIElement).fromOwnedSlice(self.allocator, elements);
-
-        try self.write_elements(new_element_list);
-
-        return new_element_list;
+        try self.write_elements();
     }
 
-    fn write_elements(self: Self, element_list: std.ArrayList(ui_drawer.UIElement)) !void {
+    fn write_elements(self: Self) !void {
         var byte_list = std.ArrayList(u8).init(self.allocator);
 
-        for (element_list.items) |element| {
-            const text = element.text;
+        for (self.element_matrix) |row| {
+            for (row) |element| {
+                const text = element.text;
 
-            if (element.background) |background| {
-                try byte_list.appendSlice(background.str());
-                try byte_list.appendSlice(text);
-                try byte_list.appendSlice(ui_drawer.UIElementBackground.default.str());
-            } else {
-                try byte_list.appendSlice(text);
+                if (element.background) |background| {
+                    try byte_list.appendSlice(background.str());
+                    try byte_list.appendSlice(text);
+                    try byte_list.appendSlice(ui_drawer.UIElementBackground.default.str());
+                } else {
+                    try byte_list.appendSlice(text);
+                }
             }
         }
 

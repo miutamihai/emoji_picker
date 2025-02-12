@@ -13,6 +13,7 @@ pub const UIElementKind = enum {
 
     const Self = @This();
 
+    // FIXME Change all these []const u8 to a single u21
     pub fn str(self: Self, text: []const u8) []const u8 {
         return switch (self) {
             .horizontal_line => "─",

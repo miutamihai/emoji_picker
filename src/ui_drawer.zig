@@ -40,8 +40,8 @@ pub const ElementBackground = enum {
     }
 };
 
-const PayloadTypes = enum { layout, character };
-const Payload = union(PayloadTypes) { layout: LayoutElement, character: []const u8 };
+const PayloadTypes = enum { layout, glyph };
+const Payload = union(PayloadTypes) { layout: LayoutElement, glyph: []const u8 };
 
 pub const UIElement = struct {
     payload: Payload,
@@ -62,7 +62,7 @@ pub const UIElement = struct {
 
         const bytes = switch (self.payload) {
             .layout => |layout| layout.str(),
-            .character => |text| text,
+            .glyph => |glyph| glyph,
         };
 
         if (self.background) |background| {
@@ -137,9 +137,9 @@ pub const RectangleDrawer = struct {
             if (horizontal_index >= title_starting_pos and horizontal_index < title_ending_pos) {
                 // Copying here as to avoid overwriting previous elements
                 const temp = self.title[horizontal_index - title_starting_pos];
-                const character: []const u8 = try self.allocator.dupe(u8, &.{temp});
+                const glyph: []const u8 = try self.allocator.dupe(u8, &.{temp});
 
-                return UIElement.init(.{ .character = character });
+                return UIElement.init(.{ .glyph = glyph });
             }
         }
 

@@ -21,7 +21,7 @@ fn get_elements_matrix(allocator: std.mem.Allocator, terminal_instance: terminal
     return matrix;
 }
 
-fn get_character_width(char: u21) usize {
+fn get_glyph_width(char: u21) usize {
     return c.wcwidth(char);
 }
 
@@ -127,9 +127,9 @@ pub const Screen = struct {
 
                         if (current_index < input.items.len) {
                             const temp = &.{input.items[current_index]};
-                            const character: []const u8 = try self.allocator.dupe(u8, temp);
+                            const glyph: []const u8 = try self.allocator.dupe(u8, temp);
 
-                            break :blk ui_drawer.UIElement.init(.{ .character = character });
+                            break :blk ui_drawer.UIElement.init(.{ .glyph = glyph });
                         } else {
                             break :blk ui_drawer.UIElement.init(.{ .layout = ui_drawer.LayoutElement.space });
                         }
@@ -162,7 +162,7 @@ pub const Screen = struct {
                                         break :temp_blk &.{description[target_array_index]};
                                     } else {
                                         // Emojis can take 2 visual spaces (if they're 4 bytes long),
-                                        //  so need to skip one character here
+                                        //  so need to skip one glyph here
 
                                         // FIXME: There are some emojis for which this is not enough
                                         // TODO: use the new getCharWidth function to determine how to do this properly
@@ -173,16 +173,16 @@ pub const Screen = struct {
                                         break :temp_blk target_emoji;
                                     }
                                 };
-                                const character: []const u8 = try self.allocator.dupe(u8, temp);
-                                break :inner_blk character;
+                                const glyph: []const u8 = try self.allocator.dupe(u8, temp);
+                                break :inner_blk glyph;
                             }
                         };
 
                         if (current_index == 0) {
-                            break :blk ui_drawer.UIElement.init_with_background(.{ .character = target_chars }, ui_drawer.ElementBackground.white);
+                            break :blk ui_drawer.UIElement.init_with_background(.{ .glyph = target_chars }, ui_drawer.ElementBackground.white);
                         }
 
-                        break :blk ui_drawer.UIElement.init(.{ .character = target_chars });
+                        break :blk ui_drawer.UIElement.init(.{ .glyph = target_chars });
                     } else {
                         break :blk input_drawer.get_for_indices(row_index, col_index) catch search_box_drawer.get_for_indices(row_index, col_index) catch drawer.get_for_indices(row_index, col_index) catch unreachable;
                     }

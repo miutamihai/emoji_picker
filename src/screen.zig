@@ -129,16 +129,16 @@ pub const Screen = struct {
                             const temp = &.{input.items[current_index]};
                             const character: []const u8 = try self.allocator.dupe(u8, temp);
 
-                            break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.character, character);
+                            break :blk ui_drawer.UIElement.init(.{ .character = character });
                         } else {
-                            break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.space, "");
+                            break :blk ui_drawer.UIElement.init(.{ .kind = ui_drawer.UIElementKind.space });
                         }
                     }
 
                     if (search_box_drawer.is_within_bounds_exclusive(row_index, col_index)) {
                         const current_index = row_index - search_box_vertical_start_pos - 1;
                         if (current_index >= emoji_view.len or current_index < 0) {
-                            break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.space, "");
+                            break :blk ui_drawer.UIElement.init(.{ .kind = ui_drawer.UIElementKind.space });
                         }
 
                         self.highlighted_line_index = row_index * col_index;
@@ -179,10 +179,10 @@ pub const Screen = struct {
                         };
 
                         if (current_index == 0) {
-                            break :blk ui_drawer.UIElement.init_with_background(ui_drawer.UIElementKind.character, target_chars, ui_drawer.UIElementBackground.white);
+                            break :blk ui_drawer.UIElement.init_with_background(.{ .character = target_chars }, ui_drawer.UIElementBackground.white);
                         }
 
-                        break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.character, target_chars);
+                        break :blk ui_drawer.UIElement.init(.{ .character = target_chars });
                     } else {
                         break :blk input_drawer.get_for_indices(row_index, col_index) catch search_box_drawer.get_for_indices(row_index, col_index) catch drawer.get_for_indices(row_index, col_index) catch unreachable;
                     }

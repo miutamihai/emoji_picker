@@ -129,7 +129,7 @@ pub const Screen = struct {
                             const temp = &.{input.items[current_index]};
                             const character: []const u8 = try self.allocator.dupe(u8, temp);
 
-                            break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.text, character);
+                            break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.character, character);
                         } else {
                             break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.space, "");
                         }
@@ -179,10 +179,10 @@ pub const Screen = struct {
                         };
 
                         if (current_index == 0) {
-                            break :blk ui_drawer.UIElement.init_with_background(ui_drawer.UIElementKind.text, target_chars, ui_drawer.UIElementBackground.white);
+                            break :blk ui_drawer.UIElement.init_with_background(ui_drawer.UIElementKind.character, target_chars, ui_drawer.UIElementBackground.white);
                         }
 
-                        break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.text, target_chars);
+                        break :blk ui_drawer.UIElement.init(ui_drawer.UIElementKind.character, target_chars);
                     } else {
                         break :blk input_drawer.get_for_indices(row_index, col_index) catch search_box_drawer.get_for_indices(row_index, col_index) catch drawer.get_for_indices(row_index, col_index) catch unreachable;
                     }
@@ -236,15 +236,8 @@ pub const Screen = struct {
 
         for (self.element_matrix) |row| {
             for (row) |element| {
-                const text = element.text;
-
-                if (element.background) |background| {
-                    try byte_list.appendSlice(background.str());
-                    try byte_list.appendSlice(text);
-                    try byte_list.appendSlice(ui_drawer.UIElementBackground.default.str());
-                } else {
-                    try byte_list.appendSlice(text);
-                }
+                const bytes = try element.to_bytes(self.allocator);
+                try byte_list.appendSlice(bytes);
             }
         }
 

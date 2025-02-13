@@ -9,12 +9,12 @@ pub const UIElementKind = enum {
     bottom_right_corner,
     bottom_left_corner,
     space,
-    text,
+    character,
 
     const Self = @This();
 
     // FIXME Change all these []const u8 to a single u21
-    pub fn str(self: Self, text: []const u8) []const u8 {
+    pub fn str(self: Self, character: []const u8) []const u8 {
         return switch (self) {
             .horizontal_line => "─",
             .vertical_line => "│",
@@ -23,7 +23,7 @@ pub const UIElementKind = enum {
             .bottom_right_corner => "╯",
             .bottom_left_corner => "╰",
             .space => " ",
-            .text => text,
+            .character => character,
         };
     }
 };
@@ -42,19 +42,46 @@ pub const UIElementBackground = enum {
     }
 };
 
+const PayloadTypes = enum { kind, character };
+const Payload = union(PayloadTypes) { kind: UIElementKind, character: []const u8 };
+
 pub const UIElement = struct {
-    kind: UIElementKind,
-    text: []const u8,
+    payload: Payload,
     background: ?UIElementBackground,
 
     const Self = @This();
 
-    pub fn init(kind: UIElementKind, text: []const u8) Self {
-        return UIElement{ .kind = kind, .text = kind.str(text), .background = null };
+    pub fn init(kind: UIElementKind, character: []const u8) Self {
+        const payload: Payload = if (kind == UIElementKind.character) .{ .character = character } else .{ .kind = kind };
+
+        return UIElement{ .payload = payload, .background = null };
     }
 
-    pub fn init_with_background(kind: UIElementKind, text: []const u8, background: UIElementBackground) Self {
-        return UIElement{ .kind = kind, .text = kind.str(text), .background = background };
+    pub fn init_with_background(kind: UIElementKind, character: []const u8, background: UIElementBackground) Self {
+        var instance = Self.init(kind, character);
+
+        instance.background = background;
+
+        return instance;
+    }
+
+    pub fn to_bytes(self: Self, allocator: std.mem.Allocator) ![]const u8 {
+        var byte_list = std.ArrayList(u8).init(allocator);
+
+        const bytes = switch (self.payload) {
+            .kind => |kind| kind.str(&.{}),
+            .character => |text| text,
+        };
+
+        if (self.background) |background| {
+            try byte_list.appendSlice(background.str());
+            try byte_list.appendSlice(bytes);
+            try byte_list.appendSlice(UIElementBackground.default.str());
+        } else {
+            try byte_list.appendSlice(bytes);
+        }
+
+        return try byte_list.toOwnedSlice();
     }
 };
 
@@ -120,7 +147,7 @@ pub const RectangleDrawer = struct {
                 const temp = self.title[horizontal_index - title_starting_pos];
                 const character: []const u8 = try self.allocator.dupe(u8, &.{temp});
 
-                return UIElement.init(.text, character);
+                return UIElement.init(.character, character);
             }
         }
 

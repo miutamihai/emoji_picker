@@ -1,7 +1,7 @@
 const std = @import("std");
 const posix = std.posix;
 
-pub const UIElementKind = enum {
+pub const LayoutElement = enum {
     horizontal_line,
     vertical_line,
     top_right_corner,
@@ -26,7 +26,7 @@ pub const UIElementKind = enum {
     }
 };
 
-pub const UIElementBackground = enum {
+pub const ElementBackground = enum {
     white,
     default,
 
@@ -40,12 +40,12 @@ pub const UIElementBackground = enum {
     }
 };
 
-const PayloadTypes = enum { kind, character };
-const Payload = union(PayloadTypes) { kind: UIElementKind, character: []const u8 };
+const PayloadTypes = enum { layout, character };
+const Payload = union(PayloadTypes) { layout: LayoutElement, character: []const u8 };
 
 pub const UIElement = struct {
     payload: Payload,
-    background: ?UIElementBackground,
+    background: ?ElementBackground,
 
     const Self = @This();
 
@@ -53,7 +53,7 @@ pub const UIElement = struct {
         return UIElement{ .payload = payload, .background = null };
     }
 
-    pub fn init_with_background(payload: Payload, background: UIElementBackground) Self {
+    pub fn init_with_background(payload: Payload, background: ElementBackground) Self {
         return UIElement{ .payload = payload, .background = background };
     }
 
@@ -61,14 +61,14 @@ pub const UIElement = struct {
         var byte_list = std.ArrayList(u8).init(allocator);
 
         const bytes = switch (self.payload) {
-            .kind => |kind| kind.str(),
+            .layout => |layout| layout.str(),
             .character => |text| text,
         };
 
         if (self.background) |background| {
             try byte_list.appendSlice(background.str());
             try byte_list.appendSlice(bytes);
-            try byte_list.appendSlice(UIElementBackground.default.str());
+            try byte_list.appendSlice(ElementBackground.default.str());
         } else {
             try byte_list.appendSlice(bytes);
         }
@@ -144,29 +144,29 @@ pub const RectangleDrawer = struct {
         }
 
         if (vertical_index == self.vertical_offset and horizontal_index == self.horizontal_offset) {
-            return UIElement.init(.{ .kind = .top_left_corner });
+            return UIElement.init(.{ .layout = .top_left_corner });
         }
 
         if (vertical_index == self.vertical_end - 1 and horizontal_index == self.horizontal_offset) {
-            return UIElement.init(.{ .kind = .bottom_left_corner });
+            return UIElement.init(.{ .layout = .bottom_left_corner });
         }
 
         if (vertical_index == self.vertical_offset and horizontal_index == self.horizontal_end - 1) {
-            return UIElement.init(.{ .kind = .top_right_corner });
+            return UIElement.init(.{ .layout = .top_right_corner });
         }
 
         if (vertical_index == self.vertical_end - 1 and horizontal_index == self.horizontal_end - 1) {
-            return UIElement.init(.{ .kind = .bottom_right_corner });
+            return UIElement.init(.{ .layout = .bottom_right_corner });
         }
 
         if (vertical_index == self.vertical_offset or vertical_index == self.vertical_end - 1) {
-            return UIElement.init(.{ .kind = .horizontal_line });
+            return UIElement.init(.{ .layout = .horizontal_line });
         }
 
         if (horizontal_index == self.horizontal_offset or horizontal_index == self.horizontal_end - 1) {
-            return UIElement.init(.{ .kind = .vertical_line });
+            return UIElement.init(.{ .layout = .vertical_line });
         }
 
-        return UIElement.init(.{ .kind = .space });
+        return UIElement.init(.{ .layout = .space });
     }
 };

@@ -131,14 +131,14 @@ pub const Screen = struct {
 
                             break :blk ui_drawer.UIElement.init(.{ .character = character });
                         } else {
-                            break :blk ui_drawer.UIElement.init(.{ .kind = ui_drawer.UIElementKind.space });
+                            break :blk ui_drawer.UIElement.init(.{ .layout = ui_drawer.LayoutElement.space });
                         }
                     }
 
                     if (search_box_drawer.is_within_bounds_exclusive(row_index, col_index)) {
                         const current_index = row_index - search_box_vertical_start_pos - 1;
                         if (current_index >= emoji_view.len or current_index < 0) {
-                            break :blk ui_drawer.UIElement.init(.{ .kind = ui_drawer.UIElementKind.space });
+                            break :blk ui_drawer.UIElement.init(.{ .layout = ui_drawer.LayoutElement.space });
                         }
 
                         self.highlighted_line_index = row_index * col_index;
@@ -179,7 +179,7 @@ pub const Screen = struct {
                         };
 
                         if (current_index == 0) {
-                            break :blk ui_drawer.UIElement.init_with_background(.{ .character = target_chars }, ui_drawer.UIElementBackground.white);
+                            break :blk ui_drawer.UIElement.init_with_background(.{ .character = target_chars }, ui_drawer.ElementBackground.white);
                         }
 
                         break :blk ui_drawer.UIElement.init(.{ .character = target_chars });
@@ -221,7 +221,7 @@ pub const Screen = struct {
                 self.element_matrix[row_index][col_index].background = null;
 
                 if (row_index == new_highlighted_index) {
-                    self.element_matrix[row_index][col_index].background = ui_drawer.UIElementBackground.white;
+                    self.element_matrix[row_index][col_index].background = ui_drawer.ElementBackground.white;
                 }
             }
         }

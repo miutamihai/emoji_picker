@@ -4,8 +4,6 @@ const types = @import("types.zig");
 const ui_drawer = @import("ui_drawer.zig");
 const emoji = @import("emoji.zig");
 
-const c = @cImport(@cInclude("wchar.h"));
-
 // TODO find the following functions a new home
 fn get_elements_matrix(allocator: std.mem.Allocator, terminal_instance: terminal.Terminal) ![][]ui_drawer.UIElement {
     const winsize = try terminal_instance.get_window_size();
@@ -19,10 +17,6 @@ fn get_elements_matrix(allocator: std.mem.Allocator, terminal_instance: terminal
     }
 
     return matrix;
-}
-
-fn get_glyph_width(char: u21) usize {
-    return c.wcwidth(char);
 }
 
 pub const ScreenType = enum { home, search };
@@ -119,6 +113,7 @@ pub const Screen = struct {
 
         while (row_index < winsize.ws_row) : (row_index += 1) {
             var col_index: usize = 0;
+            var already_printed_spaces: usize = 0;
 
             while (col_index < winsize.ws_col) : (col_index += 1) {
                 const element: ui_drawer.UIElement = blk: {
@@ -147,13 +142,23 @@ pub const Screen = struct {
                         const description = current_emoji.description;
                         const target_emoji = current_emoji.emoji;
 
+                        // FIXME: This is better, but still not quite there
+                        const codepoint_count = try std.unicode.utf8CountCodepoints(target_emoji);
+                        const number_of_spaces_per_row = search_box_width - 2 - description.len - codepoint_count - 1;
+
                         const total_text_len = description.len + 1;
                         const text_start_pos = middle_col_index - (total_text_len / 2);
                         const text_end_pos = text_start_pos + total_text_len;
 
                         const target_chars = inner_blk: {
                             if (col_index < text_start_pos or col_index >= text_end_pos) {
-                                break :inner_blk " ";
+                                if (already_printed_spaces < number_of_spaces_per_row) {
+                                    already_printed_spaces += 1;
+
+                                    break :inner_blk " ";
+                                } else {
+                                    break :inner_blk "";
+                                }
                             } else {
                                 const target_array_index = col_index - text_start_pos;
 
@@ -161,15 +166,6 @@ pub const Screen = struct {
                                     if (target_array_index < description.len) {
                                         break :temp_blk &.{description[target_array_index]};
                                     } else {
-                                        // Emojis can take 2 visual spaces (if they're 4 bytes long),
-                                        //  so need to skip one glyph here
-
-                                        // FIXME: There are some emojis for which this is not enough
-                                        // TODO: use the new getCharWidth function to determine how to do this properly
-                                        if (target_emoji.len > 3) {
-                                            col_index += 1;
-                                        }
-
                                         break :temp_blk target_emoji;
                                     }
                                 };
